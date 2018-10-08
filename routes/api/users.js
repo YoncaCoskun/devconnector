@@ -4,9 +4,12 @@ const express = require('express');
 const router = express.Router();
 const gravatar = require('gravatar');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 //Load User Model
 const User = require('../../models/User');
+
+const config = require('../../config/keys');
 
 //@route  GET api/users/test
 //@desc   Tests users route
@@ -47,6 +50,45 @@ router.post('/register', (req, res) => {
         });
       });
     }
+  });
+});
+
+//@route  GET api/users/Login
+//@desc   Login
+//@access Public
+
+router.post('/login', (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+
+  //Find user by email
+  User.findOne({ email: email }).then(user => {
+    if (!user) {
+      return res.status(404).json({ email: 'Wrong Email' });
+    }
+
+    //Check password
+    bcrypt.compare(password, user.password).then(isMatch => {
+      if (isMatch) {
+        // User Match
+        const payload = { id: user.id, name: user.name, avatar: user.avatar }; //create jwt payload
+
+        // Sign Token
+        jwt.sign(
+          payload,
+          config.secretOrKey,
+          { expiresIn: 3600 },
+          (err, token) => {
+            res.json({
+              success: true,
+              token: 'Bearer ' + token
+            });
+          }
+        );
+      } else {
+        return res.status(400).json({ password: 'Password incorrect' });
+      }
+    });
   });
 });
 
